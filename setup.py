@@ -4,7 +4,7 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='tasknet',
+    name='jcl',
     version='2019.1.5',
     author='John Pirie',
     author_email='john@thepiries.net',
@@ -20,7 +20,7 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'task = tasknet.main:entry',
+            'task = jcl.main:entry',
         ],
     }
 )

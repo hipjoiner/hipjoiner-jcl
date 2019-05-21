@@ -15,9 +15,9 @@ if __name__ == '__main__':
             raise SystemError('%s module directory not found; abort.' % mod_name)
         if path not in sys.path:
             sys.path.insert(0, path)
-    resolve_module('tasknet')
+    resolve_module('jcl')
 
-from tasknet.config import config
+from jcl.config import config
 
 
 def entry():
@@ -26,10 +26,10 @@ def entry():
 
 def task_help():
     return '\n'.join([
-        'Usage: task <command> [args]',
+        'Usage: jcl <command> [args]',
         '',
         'Commands:',
-        '    config        Configure tasknet operation on this host',
+        '    config        Configure jcl operation on this host',
         '    help          Show this help',
         '    list          Show tasks & info',
     ])
@@ -57,7 +57,7 @@ def process_command(args=''):
     elif args[0] == 'help':
         print(task_help())
     elif args[0] == 'list':
-        print('task list [not yet implemented]')
+        print('jcl list [not yet implemented]')
     else:
         print('Unrecognized subcommand "%s"' % args[0])
         print(task_help())
