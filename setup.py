@@ -5,13 +5,13 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='jcl',
-    version='2019.1.5',
+    version='2019.5.20',
     author='John Pirie',
     author_email='john@thepiries.net',
     description='Task runner & manager',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/jwpirie/tasknet',
+    url='https://github.com/jwpirie/jcl',
     packages=setuptools.find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',
@@ -20,7 +20,7 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'task = jcl.main:entry',
+            'jcl = jcl.main:entry',
         ],
     }
 )
