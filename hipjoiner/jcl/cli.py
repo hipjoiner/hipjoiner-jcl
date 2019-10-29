@@ -1,7 +1,7 @@
 import os
 import sys
 
-from jcl.config import config
+from hipjoiner.jcl.config import config
 
 
 def entry():
