@@ -53,15 +53,14 @@ class Config:
         return self.file_data['home']
 
     def list(self):
-        lines = ['Config (%s):' % self.config_fpath]
+        lines = ['Settings:']
         lines += ['  %s: %s' % (tag, val) for tag, val in self.file_data.items()]
         lines += [
             '',
             'Immutables:',
+            '  Config file:     %s' % self.config_fpath,
             '  User home:       %s' % self.user_home,
             '  User appdata:    %s' % self.user_appdata,
-            '  Tasknet appdata: %s' % self.jcl_appdata,
-            '  Tasknet config:  %s' % self.config_fpath,
         ]
         return '\n'.join(lines)
 
