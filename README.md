@@ -1,8 +1,10 @@
-# tasknet
-Job runner &amp; manager
-<p>
-1. Shell command ("task")<br/>
-2. Set and get config information<br/>
-3. Launch separate process<br/>
-Redirect stdout, stderr<br/>
-</p>
+# jcl - Job runner & manager
+
+Background service, "master", launches & manages jobs
+
+Jobs specified with JSON files
+
+Command line client interface
+
+Web site interface
+
