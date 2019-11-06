@@ -36,7 +36,7 @@ class Config:
 
     def help(self):
         return '\n'.join([
-            'Usage: jcl config <command> [args]',
+            'Usage: jcl config <command> [<args>]',
             '',
             'Commands:',
             '    delete <tag>         Remove tag from config info',

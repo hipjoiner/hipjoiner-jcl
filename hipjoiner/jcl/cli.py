@@ -10,7 +10,7 @@ def entry():
 
 def task_help():
     return '\n'.join([
-        'Usage: jcl <command> [args]',
+        'Usage: jcl <command> [<args>]',
         '',
         'Commands:',
         '    config        Configure jcl operation on this host',
