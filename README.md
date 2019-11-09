@@ -1,4 +1,4 @@
-# jcl - Job runner & manager
+# jcl - Job scheduler/manager
 
 Background service, "master", launches & manages jobs
 
@@ -12,10 +12,12 @@ Command line client interface
         set <tag>=<value>       Set config tag
         unset tag               Remove config tag
     
-        // Master management
-        master status
-        master start
-        master stop
+        // JCL Master management
+        master status           Show whether jcl master is running (& other info)
+        master start            Start jcl master running
+        master stop             Stop master
+        master install          Install master as Windows service
+        master uninstall        Uninstall Windows service
         
         // All processes
         list                    Show status of all processes
@@ -25,11 +27,16 @@ Command line client interface
         edit <proc>             Edit process by name
         remove <proc>           Remove process by name
         
-        // Process running
+        // Run management
         run <proc>              Kick off process
         redo <proc>             Restart failed process
-        cancel <proc>
-        kill <proc>
+        cancel <proc>           Cancel process (for today)
+        kill <proc>             Kill running process and mark as failed
+        reset <proc>            Reset process status for today
+        
+        // Options
+        --date                  Address process run for specific date (default: today)
+        --tail                  Watch master log of process events
         
          
 
