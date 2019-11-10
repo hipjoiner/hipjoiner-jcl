@@ -1,58 +1,56 @@
-from functools import lru_cache
 import json
 import os
 
 
 class Config:
     def __init__(self):
-        pass
+        self._file_data = None
+        self.fn_map = {
+            'list': self.info,
+            'set': None,
+            'unset': None,
+        }
 
-    def __str__(self):
-        return self.list()
+    @property
+    def appdata(self):
+        return os.path.sep.join([self.user_appdata, 'jcl'])
 
     @property
     def config_fpath(self):
-        return os.path.sep.join([self.jcl_appdata, 'config.json'])
+        return os.path.sep.join([self.appdata, 'config.json'])
 
+    def config_help(self, args):
+        help_text = """
+            Some help.
+        """
+        print(help_text)
+
+    @property
     def defaults(self):
         return {
             'home': os.path.sep.join([self.user_home, 'jcl']),
         }
 
-    def delete(self, tag):
-        self.file_data.pop(tag)
-        self.save()
-
     @property
-    @lru_cache()
     def file_data(self):
-        if not os.path.isfile(self.config_fpath):
-            os.makedirs(self.jcl_appdata, exist_ok=True)
-            data = self.defaults()
-            self.save(data)
-        with open(self.config_fpath, 'r') as fp:
-            data = json.load(fp)
-        return data
+        if not self._file_data:
+            if not os.path.isfile(self.config_fpath):
+                os.makedirs(self.appdata, exist_ok=True)
+                self._file_data = self.defaults
+                self.save()
+            with open(self.config_fpath, 'r') as fp:
+                self._file_data = json.load(fp)
+        return self._file_data
 
-    def help(self):
-        return '\n'.join([
-            'Usage: jcl config <command> [<args>]',
-            '',
-            'Commands:',
-            '    delete <tag>         Remove tag from config info',
-            '    list                 Show config info',
-            '    set <tag> <value>    Set tag=value in config info',
-        ])
+    @file_data.setter
+    def file_data(self, val):
+        self._file_data = val
 
     @property
-    def jcl_appdata(self):
-        return os.path.sep.join([self.user_appdata, 'jcl'])
-
-    @property
-    def jcl_home(self):
+    def home(self):
         return self.file_data['home']
 
-    def list(self):
+    def info(self):
         lines = ['Settings:']
         lines += ['  %s: %s' % (tag, val) for tag, val in self.file_data.items()]
         lines += [
@@ -62,50 +60,49 @@ class Config:
             '  User home:       %s' % self.user_home,
             '  User appdata:    %s' % self.user_appdata,
         ]
-        return '\n'.join(lines)
+        info_text = '\n'.join(lines)
+        print(info_text)
 
-    def process(self, args=None):
+    def process_args(self, args):
         if not args:
-            print(self.help())
-        elif args[0] == 'list':
-            print(self)
-        elif args[0] == 'set':
-            if len(args) != 3:
-                print('Bad set syntax')
-                print(self.help())
-            else:
-                self.set(args[1], args[2])
-        elif args[0] == 'delete':
-            if len(args) != 2:
-                print('Bad delete syntax')
-                print(self.help())
-            else:
-                self.delete(args[1])
+            self.config_help(args)
+            return
+        verb = args[0]
+        if verb not in self.fn_map:
+            print('Unrecognized verb: "%s"' % verb)
+            self.config_help(args)
+        elif self.fn_map[verb] is None:
+            print('Verb: "%s" -- not implemented yet' % verb)
         else:
-            print('Unrecognized argument(s) "%s"' % ' '.join(args))
-            print(self.help())
+            self.fn_map[verb](args)
 
-    def save(self, data=None):
-        if data is None:
-            data = self.file_data
+    def save(self):
         with open(self.config_fpath, 'w') as fp:
-            json.dump(data, fp, indent=4)
+            json.dump(self.file_data, fp, indent=4)
 
     def set(self, tag, value):
         self.file_data[tag] = value
         self.save()
 
+    def unset(self, tag):
+        self.file_data.pop(tag)
+        self.save()
+
     @property
     def user_appdata(self):
-        return os.environ.get('APPDATA')
+        if os.name == 'nt':
+            return os.environ.get('APPDATA')
+        raise OSError('Bad OS "%s"; not yet implemented' % os.name)
 
     @property
     def user_home(self):
-        return os.environ.get('USERPROFILE')
+        if os.name == 'nt':
+            return os.environ.get('USERPROFILE')
+        raise OSError('Bad OS "%s"; not yet implemented' % os.name)
 
 
 config = Config()
 
 
 if __name__ == '__main__':
-    config.process()
+    config.process_args()

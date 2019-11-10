@@ -1,11 +1,7 @@
 import shlex
 import sys
 
-from hipjoiner.jcl.config import config
-
-
-def cli_config(args):
-    print('cli_config...')
+from .config import config
 
 
 def cli_help(args):
@@ -17,7 +13,7 @@ Usage:  jcl [<command>] [args] [options]
     tail                        Watch master log of process events
 
     // Configuration
-    config                      Show config information
+    config list                 Show config information
     config set <tag>=<value>    Set config tag
     config unset tag            Remove config tag
 
@@ -56,7 +52,7 @@ def entry_point(cmd_line=sys.argv):
 
 
 fn_map = {
-    'config':   cli_config,
+    'config':   config.process_args,
     'help':     cli_help,
     'list':     None,
     'master':   None,
@@ -75,7 +71,8 @@ fn_map = {
 
 def normalize_args(cmd_line_args):
     """Normalize input command.
-      Whether expressed as single line of text or array, return array of arguments.
+      Whether expressed as single line of text or array, return array of arguments
+      (less first arg, i.e. the executable invoking jcl)
       """
     if not cmd_line_args:
         return []
@@ -87,7 +84,7 @@ def normalize_args(cmd_line_args):
         args = shlex.split(cmd_line_args)
     else:
         raise ValueError('Bad datatype "%s" passed to normalize_args; must be string, list or tuple' % type(cmd_line_args))
-    return args
+    return args[1:]
 
 
 def process_args(args):
@@ -101,7 +98,7 @@ def process_args(args):
     elif fn_map[verb] is None:
         print('Verb: "%s" -- not implemented yet' % verb)
     else:
-        fn_map[verb](args)
+        fn_map[verb](args[1:])
 
 
 if __name__ == '__main__':
