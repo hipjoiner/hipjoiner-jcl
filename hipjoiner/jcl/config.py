@@ -3,12 +3,23 @@ import os
 
 
 class Config:
+    @staticmethod
+    def config_help(args):
+        help_text = """
+Usage: jcl config [list|set|unset] [<args>]
+
+    jcl config list                 Show settings
+    jcl config set <tag>=<value>    Set tag/value pair
+    jcl config unset <tag>          Remove tag setting
+        """
+        print(help_text)
+
     def __init__(self):
-        self._file_data = None
+        self._settings = None
         self.fn_map = {
             'list': self.info,
-            'set': None,
-            'unset': None,
+            'set': self.set,
+            'unset': self.unset,
         }
 
     @property
@@ -19,12 +30,6 @@ class Config:
     def config_fpath(self):
         return os.path.sep.join([self.appdata, 'config.json'])
 
-    def config_help(self, args):
-        help_text = """
-            Some help.
-        """
-        print(help_text)
-
     @property
     def defaults(self):
         return {
@@ -32,33 +37,16 @@ class Config:
         }
 
     @property
-    def file_data(self):
-        if not self._file_data:
-            if not os.path.isfile(self.config_fpath):
-                os.makedirs(self.appdata, exist_ok=True)
-                self._file_data = self.defaults
-                self.save()
-            with open(self.config_fpath, 'r') as fp:
-                self._file_data = json.load(fp)
-        return self._file_data
-
-    @file_data.setter
-    def file_data(self, val):
-        self._file_data = val
-
-    @property
     def home(self):
-        return self.file_data['home']
+        return self.settings['home']
 
-    def info(self):
+    def info(self, args):
         lines = ['Settings:']
-        lines += ['  %s: %s' % (tag, val) for tag, val in self.file_data.items()]
+        lines += ['  %s: %s' % (tag, val) for tag, val in self.settings.items()]
         lines += [
             '',
-            'Immutables:',
-            '  Config file:     %s' % self.config_fpath,
-            '  User home:       %s' % self.user_home,
-            '  User appdata:    %s' % self.user_appdata,
+            'Config file:',
+            '  %s' % self.config_fpath,
         ]
         info_text = '\n'.join(lines)
         print(info_text)
@@ -74,18 +62,47 @@ class Config:
         elif self.fn_map[verb] is None:
             print('Verb: "%s" -- not implemented yet' % verb)
         else:
-            self.fn_map[verb](args)
+            self.fn_map[verb](args[1:])
 
     def save(self):
         with open(self.config_fpath, 'w') as fp:
-            json.dump(self.file_data, fp, indent=4)
+            json.dump(self.settings, fp, indent=4)
 
-    def set(self, tag, value):
-        self.file_data[tag] = value
+    def set(self, args):
+        if not args or len(args) > 2:
+            self.config_help(args)
+            return
+        norm_args = args
+        if len(args) == 1:
+            norm_args = args[0].split('=')
+        if len(norm_args) != 2:
+            self.config_help(norm_args)
+            return
+        self.settings[norm_args[0]] = norm_args[1]
+        print('%s = %s' % (norm_args[0], norm_args[1]))
         self.save()
 
-    def unset(self, tag):
-        self.file_data.pop(tag)
+    @property
+    def settings(self):
+        if self._settings is None:
+            if not os.path.isfile(self.config_fpath):
+                os.makedirs(self.appdata, exist_ok=True)
+                self._settings = self.defaults
+                self.save()
+            with open(self.config_fpath, 'r') as fp:
+                self._settings = json.load(fp)
+        return self._settings
+
+    @settings.setter
+    def settings(self, new_val):
+        self._settings = new_val
+
+    def unset(self, args):
+        if not args or len(args) > 1:
+            self.config_help(args)
+            return
+        self.settings.pop(args[0])
+        print('"%s" removed ' % args[0])
         self.save()
 
     @property
@@ -105,4 +122,6 @@ config = Config()
 
 
 if __name__ == '__main__':
-    config.process_args()
+    # config.process_args(['list'])
+    # config.process_args(['set', 'bleh=hi'])
+    config.process_args(['unset', 'bleh'])

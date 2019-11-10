@@ -1,7 +1,7 @@
 import shlex
 import sys
 
-from .config import config
+from hipjoiner.jcl.config import config
 
 
 def cli_help(args):
@@ -88,10 +88,10 @@ def normalize_args(cmd_line_args):
 
 
 def process_args(args):
-    if not args or len(args) == 1:
+    if not args:
         cli_help(args)
         exit(0)
-    verb = args[1]
+    verb = args[0]
     if verb not in fn_map:
         print('Unrecognized verb: "%s"' % verb)
         cli_help(args)
@@ -102,4 +102,5 @@ def process_args(args):
 
 
 if __name__ == '__main__':
-    entry_point('jcl help')
+    # entry_point('jcl help')
+    entry_point('jcl config')
