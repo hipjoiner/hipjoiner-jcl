@@ -1,76 +1,97 @@
-import os
+import shlex
 import sys
 
 from hipjoiner.jcl.config import config
 
 
-def entry():
-    process_command(sys.argv[1:])
+def entry_point():
+    args = normalize_args(sys.argv)
+    process_args(args)
 
 
-def task_help():
-    return '\n'.join([
-        'Usage: jcl <command> [<args>]',
-        '',
-        'Commands:',
-        '    config        Configure jcl operation on this host',
-        '    help          Show this help',
-        '    list          Show tasks & info',
-    ])
+def main_help(args):
+    return """
+Usage:  jcl [<command>] [args] [options]
+
+    // General
+    help                    Show help
+    tail                    Watch master log of process events
+
+    // Configuration
+    config                  Show config information
+    set <tag>=<value>       Set config tag
+    unset tag               Remove config tag
+
+    // JCL Master management
+    master status           Show whether jcl master is running (& other info)
+    master start            Start jcl master running
+    master stop             Stop master
+    master install          Install master as Windows service
+    master uninstall        Uninstall Windows service
+    
+    // All processes
+    list                    Show status of all processes
+    
+    // Process creation/editing
+    add <proc>              Create a process by name
+    edit <proc>             Edit process by name
+    remove <proc>           Remove process by name
+    
+    // Run management
+    run <proc>              Kick off process
+    redo <proc>             Restart failed process
+    cancel <proc>           Cancel process (for today)
+    kill <proc>             Kill running process and mark as failed
+    reset <proc>            Reset process status for today
+    
+    // Options
+    --date <yyyymmdd>|-<n>  Address process run for specific date (default: today)
+    --tail                  Watch master log of process events
+"""
 
 
-def normalize_entry(args):
+def normalize_args(cmd_line_args):
     """Normalize input command.
       Whether expressed as single line of text or array, return array of arguments.
       """
-    if not args:
-        args = []
-    elif type(args) == str:
-        args = args.split()
-    while len(args) > 0 and not args[0]:
-        args = args[1:]
-    return args
-
-
-def process_command(args=''):
-    args = normalize_entry(args)
-    if len(args) == 0:
-        print(task_help())
-    elif args[0] == 'config':
-        config.process(args[1:])
-    elif args[0] == 'help':
-        print(task_help())
-    elif args[0] == 'list':
-        print('jcl list [not yet implemented]')
+    if not cmd_line_args:
+        return ['help']
+    if isinstance(cmd_line_args, list):
+        args = cmd_line_args
+    elif isinstance(cmd_line_args, tuple):
+        args = list(cmd_line_args)
+    elif isinstance(cmd_line_args, str):
+        args = shlex.split(cmd_line_args)
     else:
-        print('Unrecognized subcommand "%s"' % args[0])
-        print(task_help())
+        raise ValueError('Bad datatype "%s" passed to normalize_args; must be string, list or tuple' % type(cmd_line_args))
+    return args[1:]
 
 
-def show(args):
-    """For documentation-- show exact command line input"""
-    fname = __file__
-    print('Command: %s %s' % (fname, ' '.join(args)))
-    print('')
+fn_map = {
+    'help':     main_help,
+    'tail':     None,
+    'config':   None,
+    'set':      None,
+    'unset':    None,
+    'master':   None,
+    'list':     None,
+    'add':      None,
+    'edit':     None,
+    'remove':   None,
+    'run':      None,
+    'redo':     None,
+    'cancel':   None,
+    'kill':     None,
+    'reset':    None,
+}
 
 
-if __name__ == '__main__':
-    tests = [
-        '',
-        'config',
-        'gurgle',
-        'config list',
-        'config gurgle',
-        'config set',
-        'config set xyz',
-        'config set xyz 123',
-        'config list',
-    ]
-    cwd = os.getcwd()
-    for i, test in enumerate(tests):
-        print('-' * 130)
-        print('Test %d' % (i + 1))
-        print('')
-        print(' '.join([cwd + '>', 'task', test]))
-        process_command(test)
-        print('')
+def process_args(args):
+    verb = args[0]
+    if verb not in fn_map:
+        print('Unrecognized verb: "%s"' % verb)
+        print(main_help())
+        exit(0)
+    if fn_map[verb] is None:
+        print('Verb: "%s" -- not implemented yet' % verb)
+    fn_map[verb](args)

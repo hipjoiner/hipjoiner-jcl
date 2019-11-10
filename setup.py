@@ -22,7 +22,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'jcl = hipjoiner.jcl.cli:entry',
+            'jcl = hipjoiner.jcl.cli:entry_point',
         ],
     }
 )

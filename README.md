@@ -6,7 +6,12 @@ Jobs specified with JSON files
 
 Command line client interface
 
-    jcl
+    jcl [<command>] [args] [options]
+
+        // General
+        help                    Show help
+        tail                    Watch master log of process events
+    
         // Configuration
         config                  Show config information
         set <tag>=<value>       Set config tag
@@ -35,7 +40,7 @@ Command line client interface
         reset <proc>            Reset process status for today
         
         // Options
-        --date                  Address process run for specific date (default: today)
+        --date <yyyymmdd>|-<n>  Address process run for specific date (default: today)
         --tail                  Watch master log of process events
         
          
