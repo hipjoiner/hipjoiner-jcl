@@ -4,13 +4,16 @@ import sys
 from hipjoiner.jcl.config import config
 
 
-def entry_point():
-    args = normalize_args(sys.argv)
+def entry_point(line=None):
+    if line is not None:
+        args = normalize_args(line)
+    else:
+        args = normalize_args(sys.argv)
     process_args(args)
 
 
 def main_help(args):
-    return """
+    help_text = """
 Usage:  jcl [<command>] [args] [options]
 
     // General
@@ -48,6 +51,7 @@ Usage:  jcl [<command>] [args] [options]
     --date <yyyymmdd>|-<n>  Address process run for specific date (default: today)
     --tail                  Watch master log of process events
 """
+    print(help_text)
 
 
 def normalize_args(cmd_line_args):
@@ -87,11 +91,18 @@ fn_map = {
 
 
 def process_args(args):
+    if not args:
+        main_help(args)
+        exit(0)
     verb = args[0]
     if verb not in fn_map:
         print('Unrecognized verb: "%s"' % verb)
-        print(main_help())
-        exit(0)
-    if fn_map[verb] is None:
+        main_help(args)
+    elif fn_map[verb] is None:
         print('Verb: "%s" -- not implemented yet' % verb)
-    fn_map[verb](args)
+    else:
+        fn_map[verb](args)
+
+
+if __name__ == '__main__':
+    entry_point('jcl help')
