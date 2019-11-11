@@ -4,7 +4,7 @@ import os
 
 class Config:
     @staticmethod
-    def config_help(args):
+    def config_help():
         help_text = """
 Usage: jcl config [list|set|unset] [<args>]
 
@@ -16,24 +16,19 @@ Usage: jcl config [list|set|unset] [<args>]
 
     def __init__(self):
         self._settings = None
-        self.fn_map = {
-            'list': self.info,
-            'set': self.set,
-            'unset': self.unset,
-        }
 
     @property
     def appdata(self):
-        return os.path.sep.join([self.user_appdata, 'jcl'])
+        return '/'.join([self.user_appdata, 'jcl'])
 
     @property
     def config_fpath(self):
-        return os.path.sep.join([self.appdata, 'config.json'])
+        return '/'.join([self.appdata, 'config.json'])
 
     @property
     def defaults(self):
         return {
-            'home': os.path.sep.join([self.user_home, 'jcl']),
+            'home': '/'.join([self.user_home, 'jcl']),
         }
 
     @property
@@ -51,33 +46,18 @@ Usage: jcl config [list|set|unset] [<args>]
         info_text = '\n'.join(lines)
         print(info_text)
 
-    def process_args(self, args):
-        if not args:
-            self.config_help(args)
-            return
-        verb = args[0]
-        if verb not in self.fn_map:
-            print('Unrecognized verb: "%s"' % verb)
-            self.config_help(args)
-        elif self.fn_map[verb] is None:
-            print('Verb: "%s" -- not implemented yet' % verb)
-        else:
-            self.fn_map[verb](args[1:])
-
     def save(self):
         with open(self.config_fpath, 'w') as fp:
             json.dump(self.settings, fp, indent=4)
 
     def set(self, args):
         if not args or len(args) > 2:
-            self.config_help(args)
-            return
+            return self.config_help()
         norm_args = args
         if len(args) == 1:
             norm_args = args[0].split('=')
         if len(norm_args) != 2:
-            self.config_help(norm_args)
-            return
+            return self.config_help()
         self.settings[norm_args[0]] = norm_args[1]
         print('%s = %s' % (norm_args[0], norm_args[1]))
         self.save()
@@ -99,8 +79,7 @@ Usage: jcl config [list|set|unset] [<args>]
 
     def unset(self, args):
         if not args or len(args) > 1:
-            self.config_help(args)
-            return
+            return self.config_help()
         self.settings.pop(args[0])
         print('"%s" removed ' % args[0])
         self.save()
@@ -108,20 +87,40 @@ Usage: jcl config [list|set|unset] [<args>]
     @property
     def user_appdata(self):
         if os.name == 'nt':
-            return os.environ.get('APPDATA')
+            return os.environ.get('APPDATA').replace('\\', '/')
         raise OSError('Bad OS "%s"; not yet implemented' % os.name)
 
     @property
     def user_home(self):
         if os.name == 'nt':
-            return os.environ.get('USERPROFILE')
+            return os.environ.get('USERPROFILE').replace('\\', '/')
         raise OSError('Bad OS "%s"; not yet implemented' % os.name)
 
 
 config = Config()
 
 
+fn_map = {
+    'list': config.info,
+    'set': config.set,
+    'unset': config.unset,
+}
+
+
+def process_args(args):
+    if len(args) <= 1:
+        return config.config_help()
+    verb = args[1]
+    if verb not in fn_map:
+        print('JCL: Unrecognized verb "%s"' % verb)
+        config.config_help()
+    elif fn_map[verb] is None:
+        print('JCL: "%s" not implemented yet' % verb)
+    else:
+        fn_map[verb](args[1:])
+
+
 if __name__ == '__main__':
-    # config.process_args(['list'])
-    # config.process_args(['set', 'bleh=hi'])
-    config.process_args(['unset', 'bleh'])
+    # process_args(['list'])
+    # process_args(['set', 'bleh=hi'])
+    process_args(['unset', 'bleh'])

@@ -1,7 +1,8 @@
 import shlex
 import sys
 
-from hipjoiner.jcl.config import config
+from hipjoiner.jcl import config
+from hipjoiner.jcl import job
 
 
 def cli_help(args):
@@ -31,6 +32,7 @@ Usage:  jcl [<command>] [args] [options]
     add <proc>                  Create a process by name
     edit <proc>                 Edit process by name
     remove <proc>               Remove process by name
+    show <proc>                 Show process settings
     
     // Run management
     run <proc>                  Kick off process
@@ -48,25 +50,7 @@ Usage:  jcl [<command>] [args] [options]
 
 def entry_point(cmd_line=sys.argv):
     args = normalize_args(cmd_line)
-    process_args(args)
-
-
-fn_map = {
-    'config':   config.process_args,
-    'help':     cli_help,
-    'list':     None,
-    'master':   None,
-    'tail':     None,
-
-    'add':      None,
-    'edit':     None,
-    'remove':   None,
-    'run':      None,
-    'redo':     None,
-    'cancel':   None,
-    'kill':     None,
-    'reset':    None,
-}
+    process_args(args[1:])
 
 
 def normalize_args(cmd_line_args):
@@ -83,24 +67,41 @@ def normalize_args(cmd_line_args):
     elif isinstance(cmd_line_args, str):
         args = shlex.split(cmd_line_args)
     else:
-        raise ValueError('Bad datatype "%s" passed to normalize_args; must be string, list or tuple' % type(cmd_line_args))
-    return args[1:]
+        raise ValueError('Bad datatype "%s"; must be string, list or tuple' % type(cmd_line_args))
+    return args
+
+
+fn_map = {
+    'config':   config.process_args,
+    'help':     cli_help,
+    'list':     None,
+    'master':   None,
+    'tail':     None,
+    'add':      job.process_args,
+    'edit':     None,
+    'remove':   job.process_args,
+    'run':      None,
+    'redo':     None,
+    'cancel':   None,
+    'kill':     None,
+    'reset':    None,
+    'show':     job.process_args,
+}
 
 
 def process_args(args):
     if not args:
-        cli_help(args)
-        exit(0)
+        return cli_help(args)
     verb = args[0]
     if verb not in fn_map:
-        print('Unrecognized verb: "%s"' % verb)
-        cli_help(args)
-    elif fn_map[verb] is None:
-        print('Verb: "%s" -- not implemented yet' % verb)
-    else:
-        fn_map[verb](args[1:])
+        print('JCL: unrecognized verb "%s"' % verb)
+        return cli_help(args)
+    if fn_map[verb] is None:
+        return print('JCL: "%s" not implemented yet' % verb)
+    fn_map[verb](args)
 
 
 if __name__ == '__main__':
     # entry_point('jcl help')
-    entry_point('jcl config')
+    # entry_point('jcl config')
+    entry_point('jcl add')

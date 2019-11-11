@@ -10,7 +10,7 @@ Command line client interface
 
         // General
         help                            Show help
-        tail                            Watch master log of process events
+        tail                            Watch master log of job events
     
         // Configuration
         config                          Show config information
@@ -25,23 +25,24 @@ Command line client interface
         master uninstall                Uninstall Windows service
         
         // All processes
-        list                            Show status of all processes
+        list                            Show status of all jobs
         
         // Process creation/editing
-        add <proc>                      Create a process by name
-        edit <proc>                     Edit process by name
-        remove <proc>                   Remove process by name
+        add <proc>                      Create a job by name
+        edit <proc>                     Edit job by name
+        remove <proc>                   Remove job by name
+        show <proc>                     Show job settings
         
         // Run management
-        run <proc>                      Kick off process
-        redo <proc>                     Restart failed process
-        cancel <proc>                   Cancel process (for today)
-        kill <proc>                     Kill running process and mark as failed
-        reset <proc>                    Reset process status for today
+        run <proc>                      Kick off job
+        redo <proc>                     Restart failed job
+        cancel <proc>                   Cancel job (for today)
+        kill <proc>                     Kill running job and mark as failed
+        reset <proc>                    Reset job status for today
         
         // Options
-        --date <yyyymmdd>|-<n>          Address process run for specific date (default: today)
-        --tail                          Watch master log of process events
+        --date <yyyymmdd>|-<n>          Address master for specific date (default: today)
+        --tail                          Watch master log of job events
         
          
 
