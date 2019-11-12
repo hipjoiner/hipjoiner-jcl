@@ -3,6 +3,7 @@ import sys
 
 from hipjoiner.jcl import config
 from hipjoiner.jcl import job
+from hipjoiner.jcl import master
 
 
 def cli_help(args):
@@ -11,39 +12,39 @@ Usage:  jcl [<command>] [args] [options]
 
     // General
     help                        Show help
-    tail                        Watch master log of process events
+    tail                        Watch master log of events
 
     // Configuration
     config list                 Show config information
     config set <tag>=<value>    Set config tag
     config unset tag            Remove config tag
 
-    // JCL Master management
-    master status               Show whether jcl master is running (& other info)
-    master start                Start jcl master running
+    // Master management
+    master status               Show whether master is running (& other info)
+    master start                Start master running
     master stop                 Stop master
     master install              Install master as Windows service
     master uninstall            Uninstall Windows service
     
-    // All processes
-    list                        Show status of all processes
-    
-    // Process creation/editing
-    add <proc>                  Create a process by name
-    edit <proc>                 Edit process by name
-    remove <proc>               Remove process by name
-    show <proc>                 Show process settings
-    
+    // Job info
+    list                        Show all jobs
+    show <job>                  Show job attributes
+
+    // Job editing
+    add <job>                   Create a job by name
+    edit <job>                  Edit job by name
+    remove <job>                Remove job by name
+
     // Run management
-    run <proc>                  Kick off process
-    redo <proc>                 Restart failed process
-    cancel <proc>               Cancel process (for today)
-    kill <proc>                 Kill running process and mark as failed
-    reset <proc>                Reset process status for today
+    run <job>                   Kick off job
+    redo <job>                  Restart failed job
+    cancel <job>                Cancel job (for today)
+    kill <job>                  Kill running job and mark as failed
+    reset <job>                 Reset job status for today
     
     // Options
-    --date <yyyymmdd>|-<n>      Address process run for specific date (default: today)
-    --tail                      Watch master log of process events
+    --date <yyyymmdd>|-<n>      Address job run for specific date (default: today)
+    --tail                      Watch master log of job events
 """
     print(help_text)
 
@@ -74,17 +75,17 @@ def normalize_args(cmd_line_args):
 fn_map = {
     'config':   config.process_args,
     'help':     cli_help,
-    'list':     None,
-    'master':   None,
+    'list':     job.process_args,
+    'master':   master.process_args,
     'tail':     None,
     'add':      job.process_args,
-    'edit':     None,
+    'edit':     job.process_args,
     'remove':   job.process_args,
-    'run':      None,
-    'redo':     None,
-    'cancel':   None,
-    'kill':     None,
-    'reset':    None,
+    'run':      job.process_args,
+    'redo':     job.process_args,
+    'cancel':   job.process_args,
+    'kill':     job.process_args,
+    'reset':    job.process_args,
     'show':     job.process_args,
 }
 
@@ -96,8 +97,6 @@ def process_args(args):
     if verb not in fn_map:
         print('JCL: unrecognized verb "%s"' % verb)
         return cli_help(args)
-    if fn_map[verb] is None:
-        return print('JCL: "%s" not implemented yet' % verb)
     fn_map[verb](args)
 
 

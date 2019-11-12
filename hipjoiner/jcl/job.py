@@ -75,11 +75,27 @@ def job_add(args):
         print('Missing job name')
         return job_help()
     name = args[0]
-    print('JCL add: "%s"' % name)
+    print('\nAdding job "%s"...' % name)
     job = Job(name, create=True)
     job.command = input('Command: ')
     job.save()
     print('Added: %s' % job.fpath)
+
+
+def job_list(args):
+    jobs = {}
+    procs_dir = '/'.join([config.home, 'procs'])
+    for root, dirs, files in os.walk(procs_dir):
+        d = root.replace('\\', '/')
+        for f in files:
+            fpath = '/'.join([d, f])
+            j = fpath.replace(procs_dir + '/', '').replace('.json', '')
+            jobs[j] = fpath
+    print('')
+    print('Job                  File')
+    print('-------------------  ---------------------------------------------')
+    for j, fpath in jobs.items():
+        print('%-20s %-40s' % (j, fpath))
 
 
 def job_remove(args):
@@ -87,20 +103,17 @@ def job_remove(args):
         print('Missing job name')
         return job_help()
     name = args[0]
-    print('JCL remove: "%s"' % name)
     job = Job(name)
     job.remove()
-    print('Removed: %s' % job.fpath)
+    print('\nJob removed: %s (%s)' % (name, job.fpath))
 
 
 def job_show(args):
     if not args:
         print('Missing job name')
         return job_help()
-    name = args[0]
-    print('JCL show: "%s"' % name)
-    job = Job(name)
-    print('File path: %s' % job.fpath)
+    job = Job(args[0])
+    print('\nFile path: %s' % job.fpath)
     print(json.dumps(job.settings, indent=4))
 
 
@@ -110,6 +123,7 @@ fn_map = {
     'edit': None,
     'help': job_help,
     'kill': None,
+    'list': job_list,
     'redo': None,
     'remove': job_remove,
     'reset': None,
