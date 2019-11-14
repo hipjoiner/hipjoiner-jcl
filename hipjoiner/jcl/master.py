@@ -1,5 +1,5 @@
-import json
 import os
+import subprocess
 
 from hipjoiner.jcl.config import config
 
@@ -17,16 +17,37 @@ Usage: master start|stop|status|install|uninstall
     print(help_text)
 
 
-class Master:
-    def __init__(self):
-        pass
+def home():
+    return '/'.join([config.home, 'hosts', host()])
+
+
+def host():
+    return os.getenv('COMPUTERNAME').lower()
+
+
+def master_loop():
+    print('Hello, master loop.')
+
+
+def master_start(args):
+    print('Master start...')
+    subprocess.Popen('python -m hipjoiner.jcl.master.master_loop')
+
+
+def master_status(args):
+    print('Checking status...')
+    print(home())
+
+
+def master_stop(args):
+    print('Master stop...')
 
 
 fn_map = {
     'install': None,
-    'start': None,
-    'status': None,
-    'stop': None,
+    'start': master_start,
+    'status': master_status,
+    'stop': master_stop,
     'uninstall': None,
 }
 
