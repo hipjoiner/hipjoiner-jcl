@@ -25,6 +25,17 @@ class Master:
         print(help_text)
 
     @property
+    def pid_from_file(self):
+        pid_fpath = '/'.join([self.home, 'jcl.pid'])
+        found = os.path.isfile(pid_fpath)
+        print('Found %s: %s' % (pid_fpath, found))
+        # FIXME: Find PID with
+        if found:
+            text = ''.join(open(pid_fpath, 'r').readlines())
+            return text
+        return None
+
+    @property
     @lru_cache()
     def home(self):
         home_dir = '/'.join([config.home, 'hosts', self.host])
@@ -38,8 +49,16 @@ class Master:
     def log(self, msg):
         print('%s %s' % (datetime.today().strftime('%Y-%m-%d %H:%M:%S'), msg))
 
+    @property
+    def pid_fpath(self):
+        return '/'.join([self.home, 'jcl.pid'])
+
     def run(self, args):
         # FIXME: How do we get PID here?  Write it to file
+        pid = os.getpid()
+        self.log('Master is PID %s...' % pid)
+        with open(self.pid_fpath, 'w') as fp:
+            fp.write(str(pid))
         # FIXME: Redirect stdout/stderr here
         outfpath = '/'.join([self.home, 'master.stdout'])
         self.log('Redirecting stdout to %s...' % outfpath)
@@ -60,16 +79,34 @@ class Master:
             shell=True,
         )
 
-    def status(self, args):
+    def status(self, args=None):
         print('Checking status...')
-        print(self.home)
-        # FIXME: Find PID with
+        pid = self.pid_from_file
+        if pid:
+            print('File says PID is %s' % pid)
+        else:
+            print('File says no PID')
         # wmic process where "commandline like '%hipjoiner.jcl.master'" get ProcessId /format:list
+        wmic = subprocess.run(
+            'wmic process where "commandline like \'%hipjoiner.jcl.master\'" get ProcessId /format:list',
+            capture_output=True
+        )
+        output = wmic.stdout.decode().strip().split('\n')
+        print('WMIC says: %s' % output)
 
-    def stop(self, args):
+    def stop(self, args=None):
         print('Master stop...')
         # Get PID, send kill instruction, verify dead, and erase PID file
-        # NOTE: IIRC, sending kill may not work; may require master to poll for a stop file
+        pid = self.pid_from_file
+        if not pid:
+            print('File says no PID; not killing anything.')
+        else:
+            # NOTE: IIRC, sending kill may not work; may require master to poll for a stop file
+            result = subprocess.run('taskkill /F /PID %s' % pid, capture_output=True)
+            output = result.stdout.decode().strip()
+            print('Kill result: %s' % output)
+        if os.path.isfile(self.pid_fpath):
+            os.remove(self.pid_fpath)
 
 
 master = Master()
@@ -98,3 +135,4 @@ def process_args(args):
 
 if __name__ == '__main__':
     master.run(sys.argv)
+    # master.status()
