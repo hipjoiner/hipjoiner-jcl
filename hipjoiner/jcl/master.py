@@ -25,17 +25,6 @@ class Master:
         print(help_text)
 
     @property
-    def pid_from_file(self):
-        pid_fpath = '/'.join([self.home, 'jcl.pid'])
-        found = os.path.isfile(pid_fpath)
-        print('Found %s: %s' % (pid_fpath, found))
-        # FIXME: Find PID with
-        if found:
-            text = ''.join(open(pid_fpath, 'r').readlines())
-            return text
-        return None
-
-    @property
     @lru_cache()
     def home(self):
         home_dir = '/'.join([config.home, 'hosts', self.host])
@@ -50,8 +39,25 @@ class Master:
         print('%s %s' % (datetime.today().strftime('%Y-%m-%d %H:%M:%S'), msg))
 
     @property
+    def pid(self):
+        """
+        FIXME: Write out clear rules for definitively determining a running master's PID,
+        or if it is not running, or if an error exists
+        """
+        return None
+
+    @property
     def pid_fpath(self):
         return '/'.join([self.home, 'jcl.pid'])
+
+    @property
+    def pid_from_file(self):
+        if os.path.isfile(self.pid_fpath):
+            print('Found PID file (%s)' % self.pid_fpath)
+            pid = ''.join(open(self.pid_fpath, 'r').readlines())
+            return pid
+        print('No PID file (%s)' % self.pid_fpath)
+        return None
 
     def run(self, args):
         # FIXME: How do we get PID here?  Write it to file
