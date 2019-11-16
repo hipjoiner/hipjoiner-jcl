@@ -40,79 +40,139 @@ class Master:
 
     @property
     def pid(self):
-        """
-        FIXME: Write out clear rules for definitively determining a running master's PID,
-        or if it is not running, or if an error exists
-        """
-        return None
+        # We trust wmic for true PID/process status; we only write file PID for audit purposes
+        pid = self.pid_from_wmic
+        if pid:
+            if pid != self.pid_from_file:
+                self.write_pid_file(pid)
+        else:
+            if os.path.isfile(self.pid_fpath):
+                os.remove(self.pid_fpath)
+        return pid
 
     @property
     def pid_fpath(self):
-        return '/'.join([self.home, 'jcl.pid'])
+        return '/'.join([self.home, 'master.pid'])
 
     @property
     def pid_from_file(self):
         if os.path.isfile(self.pid_fpath):
-            print('Found PID file (%s)' % self.pid_fpath)
             pid = ''.join(open(self.pid_fpath, 'r').readlines())
             return pid
-        print('No PID file (%s)' % self.pid_fpath)
         return None
 
-    def run(self, args):
-        # FIXME: How do we get PID here?  Write it to file
-        pid = os.getpid()
-        self.log('Master is PID %s...' % pid)
-        with open(self.pid_fpath, 'w') as fp:
-            fp.write(str(pid))
-        # FIXME: Redirect stdout/stderr here
-        outfpath = '/'.join([self.home, 'master.stdout'])
-        self.log('Redirecting stdout to %s...' % outfpath)
-        sys.stdout = open(outfpath, mode='w', buffering=1)
-        # sys.stderr = open('/'.join([home(), 'master.stderr']), 'w', 0)
-        while True:
-            self.log('master_loop running...')
-            sleep(10)
-
-    def start(self, args):
-        print('Master start...')
-        # Check status: if running, do nothing
-
-        # Rotate old stdout/stderr files out of the way before launching
-
-        subprocess.Popen(
-            'start "Master" /min python -m hipjoiner.jcl.master',
-            shell=True,
-        )
-
-    def status(self, args=None):
-        print('Checking status...')
-        pid = self.pid_from_file
-        if pid:
-            print('File says PID is %s' % pid)
-        else:
-            print('File says no PID')
-        # wmic process where "commandline like '%hipjoiner.jcl.master'" get ProcessId /format:list
+    @property
+    def pid_from_wmic(self):
         wmic = subprocess.run(
             'wmic process where "commandline like \'%hipjoiner.jcl.master\'" get ProcessId /format:list',
             capture_output=True
         )
         output = wmic.stdout.decode().strip().split('\n')
-        print('WMIC says: %s' % output)
+        if len(output) > 1:
+            raise RuntimeError('Too many masters running:\n%s' % '\n'.join(['  %s' % line for line in output]))
+        if len(output):
+            return output[0].replace('ProcessId=', '')
+        return None
+
+    def redirect_output(self):
+        """Redirect stdout/stderr to files"""
+        outfpath = self.stdout_fpath
+        self.log('Redirecting stdout to %s...' % outfpath)
+        sys.stdout = open(outfpath, mode='w', buffering=1)
+        errfpath = self.stderr_fpath
+        self.log('Redirecting stderr to %s...' % errfpath)
+        sys.stderr = open(errfpath, mode='w', buffering=1)
+
+    def rotate_output_files(self):
+        stamp = datetime.now().strftime('%Y-%m-%d-at-%H-%M-%S')
+        outfpath = self.stdout_fpath
+        if os.path.isfile(outfpath):
+            out_stamped = '/'.join([self.home, '%s-master.out' % stamp])
+            self.log('Renaming %s to %s...' % (outfpath, out_stamped))
+            os.rename(outfpath, out_stamped)
+        errfpath = self.stderr_fpath
+        if os.path.isfile(errfpath):
+            err_stamped = '/'.join([self.home, '%s-master.err' % stamp])
+            self.log('Renaming %s to %s...' % (errfpath, err_stamped))
+            os.rename(errfpath, err_stamped)
+
+    def run(self):
+        # Get my PID and write to file
+        pid = os.getpid()
+        self.log('Master started as PID %s; saving to %s...' % (pid, self.pid_fpath))
+        self.write_pid_file(pid)
+        self.redirect_output()
+        while True:
+            self.log('master_loop running...')
+            sleep(30)
+
+    def start(self, args):
+        self.log('Master start...')
+        # Check status: if running, do nothing
+        pid = self.pid
+        if pid:
+            return self.log('WARNING: Master is already running, PID %s; taking no action' % pid)
+        self.rotate_output_files()
+        self.log('Launching Master...')
+        subprocess.Popen(
+            'start "Master" /min python -m hipjoiner.jcl.master',
+            shell=True,
+        )
+        pid = self.pid
+        if pid:
+            self.log('Master is running, PID %s' % pid)
+        else:
+            self.log('ERROR, Master is not running; no PID found')
+
+    def status(self, args=None):
+        self.log('Checking Master status...')
+        pid = self.pid
+        fpid = self.pid_from_file
+        if fpid:
+            self.log('PID file (%s) says Master PID is %s' % (self.pid_fpath, fpid))
+        else:
+            self.log('PID file (%s) not found' % self.pid_fpath)
+        if pid:
+            self.log('WMIC says Master PID is %s' % pid)
+            self.log('Master is running.')
+        else:
+            self.log('WMIC says no Master PID')
+            self.log('Master is not running.')
+        return pid
+
+    @property
+    def stderr_fpath(self):
+        return '/'.join([self.home, 'master.err'])
+
+    @property
+    def stdout_fpath(self):
+        return '/'.join([self.home, 'master.out'])
 
     def stop(self, args=None):
-        print('Master stop...')
+        self.log('Master stop...')
         # Get PID, send kill instruction, verify dead, and erase PID file
         pid = self.pid_from_file
+        stopped = False
         if not pid:
-            print('File says no PID; not killing anything.')
+            self.log('File says no PID; not killing anything.')
+            stopped = True
         else:
             # NOTE: IIRC, sending kill may not work; may require master to poll for a stop file
             result = subprocess.run('taskkill /F /PID %s' % pid, capture_output=True)
             output = result.stdout.decode().strip()
-            print('Kill result: %s' % output)
-        if os.path.isfile(self.pid_fpath):
+            expected = 'SUCCESS: The process with PID %s has been terminated.' % pid
+            if output == expected:
+                self.log('Master (was PID %s) has stopped.' % pid)
+                stopped = True
+            else:
+                self.log('FAILED: Master (PID %s) was not terminated.' % pid)
+        if os.path.isfile(self.pid_fpath) and stopped:
             os.remove(self.pid_fpath)
+            self.log('PID file %s removed.' % self.pid_fpath)
+
+    def write_pid_file(self, pid):
+        with open(self.pid_fpath, 'w') as fp:
+            fp.write(str(pid))
 
 
 master = Master()
@@ -139,6 +199,9 @@ def process_args(args):
     fn_map[verb](args[1:])
 
 
+def run():
+    master.run()
+
+
 if __name__ == '__main__':
-    master.run(sys.argv)
-    # master.status()
+    run()
