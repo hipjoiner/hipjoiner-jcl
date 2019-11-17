@@ -12,11 +12,20 @@ from hipjoiner.jcl.config import config
 class Master:
     def __init__(self):
         self.current_day = None
+        self.stdout_save = sys.stdout
+        self.stderr_save = sys.stderr
+        self.stdout_fp = None
+        self.stderr_fp = None
 
-    def change_day(self, today):
+    def change_date(self, today):
+        if self.current_day is not None:
+            self.log('Date change; rotating output files...')
+            self.output_stop_redirect()
+            self.output_files_rotate()
+            self.output_redirect()
+        # FIXME: Create relevant procs copies, log directory
         self.log('Today is %s' % today)
         self.current_day = today
-        # FIXME: Create relevant procs copies, log directory
 
     def help(self, args=None):
         help_text = """
@@ -45,13 +54,13 @@ class Master:
         print('%s %s' % (datetime.today().strftime('%Y-%m-%d %H:%M:%S'), msg))
 
     def loop(self):
+        new_date = self.new_date()
+        if new_date:
+            self.change_date(new_date)
         self.log('Master loop...')
-        today = date.today()
-        if today != self.current_day:
-            self.change_day(today)
 
     @property
-    def pid(self):
+    def master_pid(self):
         # We trust wmic for true PID/process status; we only write file PID for audit purposes
         pid = self.pid_from_wmic
         if pid:
@@ -61,6 +70,44 @@ class Master:
             if os.path.isfile(self.pid_fpath):
                 os.remove(self.pid_fpath)
         return pid
+
+    def new_date(self):
+        today = date.today()
+        if self.current_day != today:
+            return today
+        return None
+
+    def output_files_rotate(self):
+        stamp = datetime.now().strftime('%Y-%m-%d-at-%H-%M-%S')
+        outfpath = self.stdout_fpath
+        if os.path.isfile(outfpath) and os.stat(outfpath).st_size:
+            out_stamped = '/'.join([self.home, 'master-%s.out' % stamp])
+            self.log('Renaming %s to %s...' % (outfpath, out_stamped))
+            os.rename(outfpath, out_stamped)
+        errfpath = self.stderr_fpath
+        if os.path.isfile(errfpath) and os.stat(errfpath).st_size:
+            err_stamped = '/'.join([self.home, 'master-%s.err' % stamp])
+            self.log('Renaming %s to %s...' % (errfpath, err_stamped))
+            os.rename(errfpath, err_stamped)
+
+    def output_redirect(self):
+        self.log('Redirecting stdout to %s...' % self.stdout_fpath)
+        self.log('Redirecting stderr to %s...' % self.stderr_fpath)
+        self.stdout_fp = open(self.stdout_fpath, mode='w', buffering=1)
+        self.stderr_fp = open(self.stderr_fpath, mode='w', buffering=1)
+        sys.stdout = self.stdout_fp
+        sys.stderr = self.stderr_fp
+
+    def output_stop_redirect(self):
+        self.log('Stopping redirects...')
+        if self.stdout_fp:
+            self.stdout_fp.close()
+            sys.stdout = self.stdout_save
+            self.log('Closed stdout file %s...' % self.stdout_fpath)
+        if self.stderr_fp:
+            self.stderr_fp.close()
+            sys.stderr = self.stderr_save
+            self.log('Closed stderr file %s...' % self.stderr_fpath)
 
     @property
     def pid_fpath(self):
@@ -86,33 +133,11 @@ class Master:
             return output[0].replace('ProcessId=', '')
         return None
 
-    def redirect_output(self):
-        """Redirect stdout/stderr to files"""
-        outfpath = self.stdout_fpath
-        self.log('Redirecting stdout to %s...' % outfpath)
-        sys.stdout = open(outfpath, mode='w', buffering=1)
-        errfpath = self.stderr_fpath
-        self.log('Redirecting stderr to %s...' % errfpath)
-        sys.stderr = open(errfpath, mode='w', buffering=1)
-
-    def rotate_output_files(self):
-        stamp = datetime.now().strftime('%Y-%m-%d-at-%H-%M-%S')
-        outfpath = self.stdout_fpath
-        if os.path.isfile(outfpath):
-            out_stamped = '/'.join([self.home, 'master-%s.out' % stamp])
-            self.log('Renaming %s to %s...' % (outfpath, out_stamped))
-            os.rename(outfpath, out_stamped)
-        errfpath = self.stderr_fpath
-        if os.path.isfile(errfpath) and os.stat(errfpath).st_size:
-            err_stamped = '/'.join([self.home, 'master-%s.err' % stamp])
-            self.log('Renaming %s to %s...' % (errfpath, err_stamped))
-            os.rename(errfpath, err_stamped)
-
     def run(self):
         pid = os.getpid()
         self.log('Master started as PID %s; saving to %s...' % (pid, self.pid_fpath))
         self.write_pid_file(pid)
-        self.redirect_output()
+        self.output_redirect()
         while True:
             self.loop()
             secs = 60
@@ -122,16 +147,16 @@ class Master:
     def start(self, args):
         self.log('Master start...')
         # Check status: if running, do nothing
-        pid = self.pid
+        pid = self.master_pid
         if pid:
             return self.log('WARNING: Master is already running, PID %s; taking no action' % pid)
-        self.rotate_output_files()
+        self.output_files_rotate()
         self.log('Launching Master...')
         subprocess.Popen(
             'start "Master" /min python -m hipjoiner.jcl.master',
             shell=True,
         )
-        pid = self.pid
+        pid = self.master_pid
         if pid:
             self.log('Master is running, PID %s' % pid)
         else:
@@ -139,7 +164,7 @@ class Master:
 
     def status(self, args=None):
         self.log('Checking Master status...')
-        pid = self.pid
+        pid = self.master_pid
         fpid = self.pid_from_file
         if fpid:
             self.log('PID file %s says Master PID is %s' % (self.pid_fpath, fpid))
