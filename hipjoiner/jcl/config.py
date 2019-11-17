@@ -1,3 +1,4 @@
+from functools import lru_cache
 import json
 import os
 
@@ -18,8 +19,11 @@ Usage: jcl config [list|set|unset] [<args>]
         self._settings = None
 
     @property
+    @lru_cache()
     def appdata(self):
-        return '/'.join([self.user_appdata, 'jcl'])
+        d = '/'.join([self.user_appdata, 'jcl'])
+        os.makedirs(d, exist_ok=True)
+        return d
 
     @property
     def config_fpath(self):
@@ -32,8 +36,24 @@ Usage: jcl config [list|set|unset] [<args>]
         }
 
     @property
+    @lru_cache()
     def home(self):
-        return self.settings['home']
+        d = self.settings['home']
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    @property
+    def host(self):
+        return os.getenv('COMPUTERNAME').lower()
+
+    @lru_cache()
+    def host_dir(self, asof=None):
+        if asof:
+            d = '/'.join([self.log_dir(asof), 'hosts', self.host])
+        else:
+            d = '/'.join([self.home, 'hosts', self.host])
+        os.makedirs(d, exist_ok=True)
+        return d
 
     def info(self, args):
         lines = ['Settings:']
@@ -45,6 +65,21 @@ Usage: jcl config [list|set|unset] [<args>]
         ]
         info_text = '\n'.join(lines)
         print(info_text)
+
+    @lru_cache()
+    def log_dir(self, asof=None):
+        if asof:
+            d = '/'.join([self.home, 'log', asof.strftime('%Y/%Y-%m/%Y-%m-%d')])
+        else:
+            d = '/'.join([self.home, 'log'])
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    @lru_cache()
+    def queue_dir(self, asof):
+        d = '/'.join([self.log_dir(asof), 'queue'])
+        os.makedirs(d, exist_ok=True)
+        return d
 
     def save(self):
         with open(self.config_fpath, 'w') as fp:
@@ -66,7 +101,6 @@ Usage: jcl config [list|set|unset] [<args>]
     def settings(self):
         if self._settings is None:
             if not os.path.isfile(self.config_fpath):
-                os.makedirs(self.appdata, exist_ok=True)
                 self._settings = self.defaults
                 self.save()
             with open(self.config_fpath, 'r') as fp:

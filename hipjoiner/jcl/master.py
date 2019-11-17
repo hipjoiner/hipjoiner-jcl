@@ -2,30 +2,37 @@ import msvcrt
 from datetime import datetime, date
 from functools import lru_cache
 import os
+from shutil import copyfile
 import subprocess
 import sys
 from time import sleep
 
 from hipjoiner.jcl.config import config
+from hipjoiner.jcl.job import all_jobs
 
 
 class Master:
     def __init__(self):
-        self.current_day = None
+        self.current_day = date.today()
         self.stdout_save = sys.stdout
         self.stderr_save = sys.stderr
         self.stdout_fp = None
         self.stderr_fp = None
 
     def change_date(self, today):
-        if self.current_day is not None:
-            self.log('Date change; rotating output files...')
-            self.output_stop_redirect()
-            self.output_files_rotate()
-            self.output_redirect()
-        # FIXME: Create relevant procs copies, log directory
+        self.log('Date change; rotating output files...')
+        self.output_stop_redirect()
+        self.output_files_rotate()
+        self.output_redirect()
         self.log('Today is %s' % today)
         self.current_day = today
+        # Create relevant procs copies, log directory
+        dated_jobs_dir = '/'.join([config.log_dir(today), 'jobs'])
+        os.makedirs(dated_jobs_dir, exist_ok=True)
+        for job, fpath in all_jobs():
+            dated_fpath = '/'.join([dated_jobs_dir, job + '.json'])
+            copyfile(fpath, dated_fpath)
+        os.makedirs(config.queue_dir(today), exist_ok=True)
 
     def help(self, args=None):
         help_text = """
@@ -42,13 +49,9 @@ class Master:
     @property
     @lru_cache()
     def home(self):
-        home_dir = '/'.join([config.home, 'hosts', self.host])
+        home_dir = '/'.join([config.home, 'hosts', config.host])
         os.makedirs(home_dir, exist_ok=True)
         return home_dir
-
-    @property
-    def host(self):
-        return os.getenv('COMPUTERNAME').lower()
 
     def log(self, msg):
         print('%s %s' % (datetime.today().strftime('%Y-%m-%d %H:%M:%S'), msg))
@@ -81,12 +84,12 @@ class Master:
         stamp = datetime.now().strftime('%Y-%m-%d-at-%H-%M-%S')
         outfpath = self.stdout_fpath
         if os.path.isfile(outfpath) and os.stat(outfpath).st_size:
-            out_stamped = '/'.join([self.home, 'master-%s.out' % stamp])
+            out_stamped = '/'.join([config.host_dir(self.current_day), 'master-%s.out' % stamp])
             self.log('Renaming %s to %s...' % (outfpath, out_stamped))
             os.rename(outfpath, out_stamped)
         errfpath = self.stderr_fpath
         if os.path.isfile(errfpath) and os.stat(errfpath).st_size:
-            err_stamped = '/'.join([self.home, 'master-%s.err' % stamp])
+            err_stamped = '/'.join([config.host_dir(self.current_day), 'master-%s.err' % stamp])
             self.log('Renaming %s to %s...' % (errfpath, err_stamped))
             os.rename(errfpath, err_stamped)
 
@@ -180,11 +183,11 @@ class Master:
 
     @property
     def stderr_fpath(self):
-        return '/'.join([self.home, 'master.err'])
+        return '/'.join([config.host_dir(self.current_day), 'master.err'])
 
     @property
     def stdout_fpath(self):
-        return '/'.join([self.home, 'master.out'])
+        return '/'.join([config.host_dir(self.current_day), 'master.out'])
 
     def stop(self, args=None):
         self.log('Master stop...')
