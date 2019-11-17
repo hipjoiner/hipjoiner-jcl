@@ -29,6 +29,7 @@ Usage:  jcl [<command>] [args] [options]
     // Job info
     list                        Show all jobs
     show <job>                  Show job attributes
+    tail <job>                  Watch live job output
 
     // Job editing
     add <job>                   Create a job by name
@@ -72,12 +73,18 @@ def normalize_args(cmd_line_args):
     return args
 
 
+def tail_route(args):
+    if len(args) == 1:
+        master.process_args(args)
+    else:
+        job.process_args(args)
+
+
 fn_map = {
     'config':   config.process_args,
     'help':     cli_help,
     'list':     job.process_args,
     'master':   master.process_args,
-    'tail':     None,
     'add':      job.process_args,
     'edit':     job.process_args,
     'remove':   job.process_args,
@@ -87,6 +94,7 @@ fn_map = {
     'kill':     job.process_args,
     'reset':    job.process_args,
     'show':     job.process_args,
+    'tail':     tail_route,
 }
 
 
@@ -103,4 +111,5 @@ def process_args(args):
 if __name__ == '__main__':
     # entry_point('jcl help')
     # entry_point('jcl config')
-    entry_point('jcl add')
+    # entry_point('jcl add')
+    entry_point('jcl tail')

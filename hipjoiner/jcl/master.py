@@ -1,4 +1,5 @@
-from datetime import datetime
+import msvcrt
+from datetime import datetime, date
 from functools import lru_cache
 import os
 import subprocess
@@ -10,7 +11,12 @@ from hipjoiner.jcl.config import config
 
 class Master:
     def __init__(self):
-        pass
+        self.current_day = None
+
+    def change_day(self, today):
+        self.log('Today is %s' % today)
+        self.current_day = today
+        # FIXME: Create relevant procs copies, log directory
 
     def help(self, args=None):
         help_text = """
@@ -37,6 +43,12 @@ class Master:
 
     def log(self, msg):
         print('%s %s' % (datetime.today().strftime('%Y-%m-%d %H:%M:%S'), msg))
+
+    def loop(self):
+        self.log('Master loop...')
+        today = date.today()
+        if today != self.current_day:
+            self.change_day(today)
 
     @property
     def pid(self):
@@ -87,24 +99,25 @@ class Master:
         stamp = datetime.now().strftime('%Y-%m-%d-at-%H-%M-%S')
         outfpath = self.stdout_fpath
         if os.path.isfile(outfpath):
-            out_stamped = '/'.join([self.home, '%s-master.out' % stamp])
+            out_stamped = '/'.join([self.home, 'master-%s.out' % stamp])
             self.log('Renaming %s to %s...' % (outfpath, out_stamped))
             os.rename(outfpath, out_stamped)
         errfpath = self.stderr_fpath
-        if os.path.isfile(errfpath):
-            err_stamped = '/'.join([self.home, '%s-master.err' % stamp])
+        if os.path.isfile(errfpath) and os.stat(errfpath).st_size:
+            err_stamped = '/'.join([self.home, 'master-%s.err' % stamp])
             self.log('Renaming %s to %s...' % (errfpath, err_stamped))
             os.rename(errfpath, err_stamped)
 
     def run(self):
-        # Get my PID and write to file
         pid = os.getpid()
         self.log('Master started as PID %s; saving to %s...' % (pid, self.pid_fpath))
         self.write_pid_file(pid)
         self.redirect_output()
         while True:
-            self.log('master_loop running...')
-            sleep(30)
+            self.loop()
+            secs = 60
+            self.log('Sleep %d sec...' % secs)
+            sleep(secs)
 
     def start(self, args):
         self.log('Master start...')
@@ -129,9 +142,9 @@ class Master:
         pid = self.pid
         fpid = self.pid_from_file
         if fpid:
-            self.log('PID file (%s) says Master PID is %s' % (self.pid_fpath, fpid))
+            self.log('PID file %s says Master PID is %s' % (self.pid_fpath, fpid))
         else:
-            self.log('PID file (%s) not found' % self.pid_fpath)
+            self.log('PID file %s not found' % self.pid_fpath)
         if pid:
             self.log('WMIC says Master PID is %s' % pid)
             self.log('Master is running.')
@@ -157,7 +170,6 @@ class Master:
             self.log('File says no PID; not killing anything.')
             stopped = True
         else:
-            # NOTE: IIRC, sending kill may not work; may require master to poll for a stop file
             result = subprocess.run('taskkill /F /PID %s' % pid, capture_output=True)
             output = result.stdout.decode().strip()
             expected = 'SUCCESS: The process with PID %s has been terminated.' % pid
@@ -170,9 +182,39 @@ class Master:
             os.remove(self.pid_fpath)
             self.log('PID file %s removed.' % self.pid_fpath)
 
+    def tail(self, args=None):
+        n = 10
+        if args:
+            n = abs(int(args[0]))
+        self.log('Tailing master log %s...' % self.stdout_fpath)
+        with open(self.stdout_fpath, 'r') as fp:
+            for line in fp.readlines()[-n:]:
+                print(line, end='')
+            pos = fp.tell()
+        try:
+            while True:
+                with open(self.stdout_fpath, 'r') as fp:
+                    fp.seek(pos)
+                    data = fp.read()
+                    if data:
+                        print(data, end='')
+                        pos = fp.tell()
+                if keypressed():
+                    return
+                sleep(1)
+        except KeyboardInterrupt:
+            return
+
     def write_pid_file(self, pid):
         with open(self.pid_fpath, 'w') as fp:
             fp.write(str(pid))
+
+
+def keypressed():
+    if msvcrt.kbhit():
+        msvcrt.getch()
+        return True
+    return False
 
 
 master = Master()
@@ -183,11 +225,14 @@ fn_map = {
     'start': master.start,
     'status': master.status,
     'stop': master.stop,
+    'tail': master.tail,
     'uninstall': None,
 }
 
 
 def process_args(args):
+    if args == ['tail']:
+        return master.tail()
     if len(args) < 2:
         return master.help()
     verb = args[1]

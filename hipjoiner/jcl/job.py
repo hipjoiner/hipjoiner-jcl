@@ -17,11 +17,14 @@ Usage: jcl [add|cancel|edit|kill|redo|remove|reset|run|show] <job_name>
     jcl reset <job_name>        Reset job status for the day
     jcl run <job_name>          Run job for the day
     jcl show <job_name>         Show job settings
+    jcl tail <job_name>         Tail job output file
 """
     print(help_text)
 
 
 class Job:
+    home = '/'.join([config.home, 'jobs'])
+
     def __init__(self, name, create=False):
         self.name = name
         if create:
@@ -42,7 +45,7 @@ class Job:
 
     @property
     def fpath(self):
-        return '/'.join([config.home, 'procs', self.name + '.json'])
+        return '/'.join([self.home, self.name + '.json'])
 
     def remove(self):
         os.remove(self.fpath)
@@ -70,6 +73,17 @@ class Job:
         self._settings = new_val
 
 
+def all_jobs(asof_date=None):
+    jobs = []
+    for root, dirs, files in os.walk(Job.home):
+        d = root.replace('\\', '/')
+        for f in files:
+            fpath = '/'.join([d, f])
+            j = fpath.replace(Job.home + '/', '').replace('.json', '')
+            jobs.append((j, fpath))
+    return jobs
+
+
 def job_add(args):
     if not args:
         print('Missing job name')
@@ -83,18 +97,10 @@ def job_add(args):
 
 
 def job_list(args):
-    jobs = {}
-    procs_dir = '/'.join([config.home, 'procs'])
-    for root, dirs, files in os.walk(procs_dir):
-        d = root.replace('\\', '/')
-        for f in files:
-            fpath = '/'.join([d, f])
-            j = fpath.replace(procs_dir + '/', '').replace('.json', '')
-            jobs[j] = fpath
     print('')
     print('Job                  File')
     print('-------------------  ---------------------------------------------')
-    for j, fpath in jobs.items():
+    for j, fpath in all_jobs():
         print('%-20s %-40s' % (j, fpath))
 
 
@@ -129,6 +135,7 @@ fn_map = {
     'reset': None,
     'run': None,
     'show': job_show,
+    'tail': None,
 }
 
 
