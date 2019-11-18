@@ -23,9 +23,9 @@ class Master:
         self.log('Date change; rotating output files...')
         self.output_stop_redirect()
         self.output_files_rotate()
+        self.current_day = today
         self.output_redirect()
         self.log('Today is %s' % today)
-        self.current_day = today
         # Create relevant procs copies, log directory
         dated_jobs_dir = '/'.join([config.log_dir(today), 'jobs'])
         os.makedirs(dated_jobs_dir, exist_ok=True)
