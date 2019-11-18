@@ -2,6 +2,7 @@ import json
 import os
 
 from hipjoiner.jcl.config import config
+from hipjoiner.jcl.posts import posts
 
 
 class Job:
@@ -114,6 +115,7 @@ def job_post(args):
         return job_help()
     name = args[1]
     # FIXME: Post to queue
+    posts.add('%s %s' % (verb, name))
 
 
 def job_remove(args):
@@ -145,7 +147,7 @@ fn_map = {
     'redo': None,
     'remove': job_remove,
     'reset': None,
-    'run': None,
+    'run': job_post,
     'show': job_show,
     'tail': None,
 }
