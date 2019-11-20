@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from functools import lru_cache
+import json
 import os
 
 from hipjoiner.jcl.config import config
@@ -11,47 +12,49 @@ class Posts:
 
     def add(self, post):
         d = datetime.now().strftime('%Y-%m-%d-at-%H-%M-%S')
-        subdir = '/'.join([self.post_dir, d])
+        subdir = '/'.join([self.posts_dir, d])
         os.makedirs(subdir)
-        post_fpath = '/'.join([subdir, 'post.txt'])
+        post_fpath = '/'.join([subdir, self.post_fname])
         with open(post_fpath, 'w') as fp:
-            fp.write(post)
+            json.dump({'command': post}, fp, indent=4)
 
-    def all_posts(self):
-        all = []
-        for dt, pdir in self.all_post_dirs():
-            posts = os.listdir(pdir)
-            for post in posts:
-                dpath = '/'.join([pdir, post])
-                if os.path.isdir(dpath):
-                    all.append(dpath)
-        return all
+    @property
+    def close_fname(self):
+        return 'close.json'
 
-    def all_post_dirs(self):
-        qdirs = []
+    @property
+    def post_fname(self):
+        return 'post.json'
+
+    def post_dirs(self, filter='all'):
+        result = []
+        for dt, proot in self.post_roots():
+            for pdir in os.listdir(proot):
+                post_dir = '/'.join([proot, pdir])
+                print(post_dir)
+                for f in os.listdir(post_dir):
+                    print('  Found %s' % f)
+                result.append(post_dir)
+        return result
+
+    def post_roots(self):
+        result = []
         for root, dirs, files in os.walk(config.log_dir()):
             r = root.replace('\\', '/')
             for d in dirs:
                 if d == 'posts':
-                    qdirs.append((root[-10:], '/'.join([r, d])))
-        return qdirs
+                    result.append((root[-10:], '/'.join([r, d])))
+        return result
 
     @property
     @lru_cache()
-    def post_dir(self):
-        return '/'.join([config.log_dir(date.today()), 'posts'])
+    def posts_dir(self):
+        return config.posts_dir(date.today())
 
 
 posts = Posts()
 
 
 if __name__ == '__main__':
-    """
-    print('All queue dirs:')
-    for dt, d in schedule.all_post_dirs():
-        print('  %s' % d)
-    print('All posts:')
-    for p in schedule.all_posts():
-        print('  %s' % p)
-    """
-    posts.add('bleh')
+    # posts.add('run bleh')
+    pdirs = posts.post_dirs()

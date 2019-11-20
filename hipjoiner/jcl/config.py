@@ -76,8 +76,8 @@ Usage: jcl config [list|set|unset] [<args>]
         return d
 
     @lru_cache()
-    def queue_dir(self, asof):
-        d = '/'.join([self.log_dir(asof), 'queue'])
+    def posts_dir(self, asof):
+        d = '/'.join([self.log_dir(asof), 'posts'])
         os.makedirs(d, exist_ok=True)
         return d
 
